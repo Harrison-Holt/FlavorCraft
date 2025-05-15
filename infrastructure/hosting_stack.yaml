@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: This stack builds the hosting stack for the FlavorCraft App
+
+Resources:
+  FlavorCraftHostingBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: flavorcraft-hosting-bucket
+      WebsiteConfiguration: 
+        IndexDocument: index.html 
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags: 
+        - Key: Name
+          Value: flavorcraft-hosting-bucket
+
+  MyOAI:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig: 
+        Comment: Access Identity For The S3 Bucket
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy 
+    DependsOn: FlavorCraftHostingBucket
+    Properties:
+      Bucket:
+        Ref: FlavorCraftHostingBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement: 
+          - Effect: Allow
+            Action: s3:GetObject
+            Resource: 
+              Fn::Sub: arn:aws:s3:::${FlavorCraftHostingBucket}/*
+            Principal: 
+              CanonicalUser:
+                Fn::GetAtt: [MyOAI, S3CanonicalUserId]
+
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig: 
+        Enabled: true
+        DefaultRootObject: index.html 
+        Origins:
+          - Id: S3Origin
+            DomainName: 
+              Fn::GetAtt: [FlavorCraftHostingBucket, RegionalDomainName]
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Sub: origin-access-identity/cloudfront/${MyOAI}
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD]
+          CachedMethods: [GET, HEAD]
+          ForwardedValues:
+            QueryString: false
+            Cookies: 
+              Forward: none 
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true 
+
+Outputs:
+  CloudFrontURL:
+    Description: Public URL of the FlavorCraft App
+    Value:
+      Fn::Sub: https://${CloudFrontDistribution.DomainName}
+
+
