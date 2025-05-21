@@ -3,13 +3,13 @@ version: 0.2
 phases:
   install:
     commands:
-      - cd frontend
-      - npm install
+      - echo "No install step needed for plain HTML/JS"
+
   build:
     commands:
-      - npm run build
+      - echo "No build step needed for plain HTML/JS"
 
 artifacts:
-  base-directory: frontend/dist
+  base-directory: frontend
   files:
     - '**/*'
